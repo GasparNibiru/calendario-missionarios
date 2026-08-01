@@ -14,6 +14,7 @@ const DATABASE_URL = process.env.DATABASE_URL;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const JWT_SECRET = process.env.JWT_SECRET;
 const COOKIE_SECURE = String(process.env.COOKIE_SECURE || "true") === "true";
+const DATABASE_SSL = String(process.env.DATABASE_SSL || "false") === "true";
 const RETENTION_MONTHS = Math.max(1, Number(process.env.RETENTION_MONTHS || 3));
 
 if (!DATABASE_URL || !ADMIN_PASSWORD || !JWT_SECRET) {
@@ -23,7 +24,7 @@ if (!DATABASE_URL || !ADMIN_PASSWORD || !JWT_SECRET) {
 
 const pool = new Pool({
   connectionString: DATABASE_URL,
-  ssl: DATABASE_URL.includes("localhost") ? false : { rejectUnauthorized: false }
+  ssl: DATABASE_SSL ? { rejectUnauthorized: false } : false
 });
 
 app.use(helmet({
