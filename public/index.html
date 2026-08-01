@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Almoço Missionários</title>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    :root{
+      --primary:#1e3a8a;--primary-light:#3b82f6;--success:#16a34a;
+      --warning:#f59e0b;--danger:#dc2626;--purple:#7c3aed;
+      --bg:#f3f4f6;--card:#fff;--text:#1f2937;--muted:#6b7280;
+      --border:#e5e7eb;--free:#dcfce7;--almoco:#dbeafe;
+      --janta:#ede9fe;--blocked:#f3f4f6
+    }
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text)}
+    header{background:var(--primary);color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20}
+    .title,.actions,.row,.legend,.modal-actions{display:flex;align-items:center}
+    .title{gap:8px;font-weight:700}.actions{gap:6px}
+    button{font:inherit}.icon-btn{border:0;background:#ffffff24;color:#fff;width:40px;height:40px;border-radius:10px;display:grid;place-items:center}
+    .nav{background:#fff;padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+    .nav button{border:0;background:var(--primary-light);color:#fff;width:38px;height:38px;border-radius:50%}
+    .nav h2{font-size:1.1rem;text-transform:capitalize}
+    main{max-width:760px;margin:auto;padding-bottom:30px}
+    .calendar-wrap{padding:8px}.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+    .weekday{text-align:center;color:var(--muted);font-size:.7rem;font-weight:700;padding:6px 0}
+    .day{aspect-ratio:1;border-radius:8px;padding:4px;min-height:44px;display:flex;flex-direction:column;justify-content:space-between;position:relative;border:2px solid transparent;overflow:hidden}
+    .day:not(.empty):not(.blocked){cursor:pointer}.day.free{background:var(--free)}.day.almoco{background:var(--almoco)}
+    .day.janta{background:var(--janta)}.day.both{background:linear-gradient(135deg,var(--almoco) 50%,var(--janta) 50%)}
+    .day.blocked{background:var(--blocked);opacity:.55}.num{font-weight:700}.family{font-size:.55rem;color:var(--primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .legend{justify-content:center;gap:12px;flex-wrap:wrap;font-size:.75rem;color:var(--muted);padding:8px}.dot{width:10px;height:10px;border-radius:3px}
+    .warning{margin:8px 16px;padding:9px 12px;border-radius:8px;background:#fef3c7;color:#92400e;font-size:.82rem}
+    .timestamp{text-align:center;color:var(--muted);font-size:.7rem;padding:8px}
+    .overlay{position:fixed;inset:0;background:#0008;display:none;align-items:flex-end;justify-content:center;z-index:100}
+    .overlay.active{display:flex}.modal{background:#fff;width:100%;max-width:520px;max-height:88vh;overflow:auto;border-radius:20px 20px 0 0;padding:20px}
+    .modal h3{color:var(--primary);margin-bottom:14px}.form-group{margin-bottom:14px}.form-group label{display:block;font-weight:600;margin-bottom:6px}
+    input,select{width:100%;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--bg);font-size:1rem}
+    .radio-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.radio-card{border:2px solid var(--border);padding:12px;border-radius:10px}
+    .family-list{display:flex;flex-direction:column;gap:7px;max-height:220px;overflow:auto}.family-option{padding:11px;border:2px solid var(--border);border-radius:10px;cursor:pointer}
+    .family-option.selected{border-color:var(--primary-light);background:var(--almoco)}.modal-actions{gap:8px;margin-top:16px}
+    .btn{border:0;border-radius:10px;padding:12px 14px;font-weight:700;flex:1}.primary{background:var(--primary);color:#fff}.secondary{background:var(--border)}.danger{background:var(--danger);color:#fff}
+    .details{display:flex;flex-direction:column;gap:8px}.detail{padding:10px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:10px}
+    .detail span:last-child{font-weight:700;text-align:right}.hidden{display:none!important}.auth-ok{width:8px;height:8px;background:#22c55e;border-radius:50%;position:absolute;right:4px;top:4px}
+    .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 14px;border-radius:10px;display:none;z-index:300}
+  </style>
+</head>
+<body>
+<header>
+  <div class="title"><i data-lucide="utensils"></i>Almoço Missionários</div>
+  <div class="actions">
+    <button class="icon-btn" id="familiesBtn" title="Famílias"><i data-lucide="users"></i></button>
+    <button class="icon-btn" id="nextMonthBtn" title="Gerar próximo mês"><i data-lucide="calendar-range"></i></button>
+    <button class="icon-btn" id="newFamilyBtn" title="Cadastrar família" style="position:relative">
+      <i data-lucide="user-plus"></i><span id="authBadge" class="auth-ok hidden"></span>
+    </button>
+  </div>
+</header>
+
+<main>
+  <div class="nav">
+    <button id="prevBtn"><i data-lucide="chevron-left"></i></button>
+    <h2 id="monthTitle"></h2>
+    <button id="nextBtn"><i data-lucide="chevron-right"></i></button>
+  </div>
+
+  <div class="calendar-wrap"><div class="calendar" id="calendar"></div></div>
+
+  <div class="legend">
+    <span class="row"><span class="dot" style="background:var(--free)"></span>&nbsp;Livre</span>
+    <span class="row"><span class="dot" style="background:var(--almoco)"></span>&nbsp;Almoço</span>
+    <span class="row"><span class="dot" style="background:var(--janta)"></span>&nbsp;Janta</span>
+    <span class="row"><span class="dot" style="background:var(--blocked)"></span>&nbsp;P-Day</span>
+  </div>
+
+  <div class="timestamp" id="timestamp"></div>
+  <div class="warning" id="warning"></div>
+</main>
+
+<div class="overlay" id="authModal"><div class="modal">
+  <h3>Acesso restrito</h3>
+  <p style="color:var(--muted);margin-bottom:14px">Digite a senha para alterar o calendário.</p>
+  <div class="form-group"><label for="password">Senha</label><input id="password" type="password" autocomplete="current-password"></div>
+  <div class="modal-actions"><button class="btn secondary close">Cancelar</button><button class="btn primary" id="loginBtn">Entrar</button></div>
+</div></div>
+
+<div class="overlay" id="bookingModal"><div class="modal">
+  <h3 id="bookingTitle">Agendar</h3>
+  <div class="form-group"><label>Tipo de refeição</label>
+    <div class="radio-grid">
+      <label class="radio-card"><input type="radio" name="meal" value="almoco" checked> Almoço</label>
+      <label class="radio-card"><input type="radio" name="meal" value="janta"> Janta</label>
+    </div>
+  </div>
+  <div class="form-group"><label>Família</label><div id="familyOptions" class="family-list"></div></div>
+  <div class="form-group"><label for="fixedType">Tipo de agendamento</label>
+    <select id="fixedType"><option value="none">Avulso</option><option value="date">Data fixa mensal</option><option value="weekday">Dia da semana fixo</option></select>
+  </div>
+  <div class="modal-actions"><button class="btn secondary close">Cancelar</button><button class="btn primary" id="saveBookingBtn">Salvar</button></div>
+</div></div>
+
+<div class="overlay" id="familyModal"><div class="modal">
+  <h3>Cadastrar família</h3>
+  <div class="form-group"><label for="familyName">Nome</label><input id="familyName" placeholder="Ex.: Família Silva"></div>
+  <div class="form-group"><label for="familyPhone">WhatsApp</label><input id="familyPhone" inputmode="numeric" placeholder="55999999999"></div>
+  <div class="modal-actions"><button class="btn secondary close">Cancelar</button><button class="btn primary" id="saveFamilyBtn">Salvar</button></div>
+</div></div>
+
+<div class="overlay" id="detailModal"><div class="modal">
+  <h3>Detalhes do dia</h3>
+  <div id="detailContent" class="details"></div>
+  <div class="modal-actions">
+    <button class="btn secondary close">Fechar</button>
+    <button class="btn primary" id="whatsappBtn">WhatsApp</button>
+  </div>
+  <div class="modal-actions">
+    <button class="btn secondary" id="editBtn">Editar</button>
+    <button class="btn danger" id="deleteBtn">Cancelar agendamento</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="familiesModal"><div class="modal">
+  <h3>Famílias e agendamentos do mês</h3>
+  <div id="familiesContent" class="details"></div>
+  <div class="modal-actions"><button class="btn secondary close">Fechar</button></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const MONTHS=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const WEEK=["DOM","SEG","TER","QUA","QUI","SEX","SÁB"];
+let current=new Date();
+current.setDate(1);
+let families=[],bookings=[],authenticated=false,pendingAction=null,selectedDate=null,selectedFamilyId=null,selectedBooking=null;
+
+const $=id=>document.getElementById(id);
+const show=id=>$(id).classList.add("active");
+const hide=id=>$(id).classList.remove("active");
+const toast=msg=>{const t=$("toast");t.textContent=msg;t.style.display="block";setTimeout(()=>t.style.display="none",2600)};
+async function api(url,options={}){
+  const res=await fetch(url,{headers:{"Content-Type":"application/json",...(options.headers||{})},...options});
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok) throw Object.assign(new Error(data.error||"Erro na solicitação."),{status:res.status});
+  return data;
+}
+async function checkAuth(){
+  const data=await api("/api/auth/status");
+  authenticated=data.authenticated;
+  $("authBadge").classList.toggle("hidden",!authenticated);
+}
+function requireAuth(fn){
+  if(authenticated)return fn();
+  pendingAction=fn;
+  $("password").value="";
+  show("authModal");
+  setTimeout(()=>$("password").focus(),100);
+}
+async function loadFamilies(){families=await api("/api/families")}
+async function loadBookings(){
+  bookings=await api(`/api/bookings?year=${current.getFullYear()}&month=${current.getMonth()+1}`);
+}
+function dateStr(y,m,d){return `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`}
+function formatDate(s){const [y,m,d]=s.split("-");return `${d}/${m}/${y}`}
+async function refresh(){
+  await Promise.all([loadFamilies(),loadBookings()]);
+  render();
+}
+function render(){
+  const y=current.getFullYear(),m=current.getMonth();
+  $("monthTitle").textContent=`${MONTHS[m]} ${y}`;
+  const cal=$("calendar");cal.innerHTML="";
+  [1,2,3,4,5,6,0].forEach(i=>{const e=document.createElement("div");e.className="weekday";e.textContent=WEEK[i];cal.appendChild(e)});
+  const first=new Date(y,m,1),last=new Date(y,m+1,0),offset=(first.getDay()+6)%7;
+  for(let i=0;i<offset;i++){const e=document.createElement("div");e.className="day empty";cal.appendChild(e)}
+  let missing=0;
+  for(let d=1;d<=last.getDate();d++){
+    const dt=new Date(y,m,d),ds=dateStr(y,m,d),items=bookings.filter(b=>b.date===ds);
+    const lunch=items.find(b=>b.type==="almoco"),dinner=items.find(b=>b.type==="janta");
+    const e=document.createElement("div");e.className="day";
+    if(dt.getDay()===1){e.classList.add("blocked");e.innerHTML=`<div class="num">${d}</div><div class="family">P-Day</div>`}
+    else if(!items.length){e.classList.add("free");e.innerHTML=`<div class="num">${d}</div><div class="family" style="color:var(--success)">+</div>`;e.addEventListener("click",()=>requireAuth(()=>openBooking(ds)))}
+    else{
+      e.classList.add(lunch&&dinner?"both":lunch?"almoco":"janta");
+      e.innerHTML=`<div class="num">${d}</div>${lunch?`<div class="family">☀ ${lunch.familyName}</div>`:""}${dinner?`<div class="family">☾ ${dinner.familyName}</div>`:""}`;
+      e.addEventListener("click",()=>openDay(items));
+    }
+    if(dt.getDay()!==1&&!lunch)missing++;
+    cal.appendChild(e);
+  }
+  $("warning").textContent=missing?`${missing} dia${missing>1?"s":""} sem almoço agendado`:"Todos os dias têm almoço agendado!";
+  $("timestamp").textContent=`Atualizado em ${new Date().toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}`;
+  lucide.createIcons();
+}
+function renderFamilyOptions(preselected){
+  selectedFamilyId=preselected||null;
+  $("familyOptions").innerHTML=families.length?families.map(f=>`<div class="family-option ${String(f.id)===String(preselected)?"selected":""}" data-id="${f.id}"><strong>${f.name}</strong><br><small>${f.phone}</small></div>`).join(""):"Nenhuma família cadastrada.";
+  document.querySelectorAll(".family-option").forEach(el=>el.addEventListener("click",()=>{
+    selectedFamilyId=el.dataset.id;
+    document.querySelectorAll(".family-option").forEach(x=>x.classList.toggle("selected",x===el));
+  }));
+}
+function openBooking(ds,booking=null){
+  selectedDate=ds;selectedBooking=booking;
+  $("bookingTitle").textContent=booking?`Editar ${formatDate(ds)}`:`Agendar ${formatDate(ds)}`;
+  renderFamilyOptions(booking?.familyId);
+  document.querySelector(`input[name="meal"][value="${booking?.type||"almoco"}"]`).checked=true;
+  $("fixedType").value=booking?.fixedType||"none";
+  show("bookingModal");
+}
+function openDay(items){
+  if(items.length>1){
+    $("detailContent").innerHTML=items.map(b=>`<button class="btn secondary choose-booking" data-id="${b.id}">${b.type==="almoco"?"Almoço":"Janta"} — ${b.familyName}</button>`).join("");
+    selectedBooking=null;
+    $("whatsappBtn").classList.add("hidden");$("editBtn").classList.add("hidden");$("deleteBtn").classList.add("hidden");
+    document.querySelectorAll(".choose-booking").forEach(b=>b.addEventListener("click",()=>openSingle(items.find(x=>x.id===b.dataset.id))));
+    show("detailModal");
+  } else openSingle(items[0]);
+}
+function openSingle(b){
+  selectedBooking=b;
+  $("detailContent").innerHTML=`
+    <div class="detail"><span>Data</span><span>${formatDate(b.date)}</span></div>
+    <div class="detail"><span>Refeição</span><span>${b.type==="almoco"?"Almoço":"Janta"}</span></div>
+    <div class="detail"><span>Família</span><span>${b.familyName}</span></div>
+    <div class="detail"><span>Telefone</span><span>${b.phone}</span></div>
+    <div class="detail"><span>Tipo</span><span>${b.fixedType==="date"?"Data fixa":b.fixedType==="weekday"?"Dia da semana fixo":"Avulso"}</span></div>`;
+  $("whatsappBtn").classList.remove("hidden");$("editBtn").classList.remove("hidden");$("deleteBtn").classList.remove("hidden");
+  show("detailModal");
+}
+async function saveBooking(){
+  if(!selectedFamilyId)return toast("Selecione uma família.");
+  const payload={familyId:selectedFamilyId,date:selectedDate,type:document.querySelector('input[name="meal"]:checked').value,fixedType:$("fixedType").value};
+  try{
+    if(selectedBooking)await api(`/api/bookings/${selectedBooking.id}`,{method:"PUT",body:JSON.stringify(payload)});
+    else await api("/api/bookings",{method:"POST",body:JSON.stringify(payload)});
+    hide("bookingModal");await refresh();toast("Agendamento salvo.");
+  }catch(e){if(e.status===401){authenticated=false;hide("bookingModal");requireAuth(()=>openBooking(selectedDate,selectedBooking))}else toast(e.message)}
+}
+async function saveFamily(){
+  const name=$("familyName").value.trim(),phone=$("familyPhone").value.trim();
+  try{
+    const f=await api("/api/families",{method:"POST",body:JSON.stringify({name,phone})});
+    families.push(f);hide("familyModal");$("familyName").value="";$("familyPhone").value="";toast("Família cadastrada.");
+  }catch(e){toast(e.message)}
+}
+function openFamilies(){
+  $("familiesContent").innerHTML=bookings.length?bookings.map(b=>`<div class="detail"><span><strong>${b.familyName}</strong><br><small>${b.phone}</small></span><span>${formatDate(b.date)}<br>${b.type==="almoco"?"Almoço":"Janta"}</span></div>`).join(""):"Nenhum agendamento neste mês.";
+  show("familiesModal");
+}
+$("prevBtn").addEventListener("click",async()=>{current.setMonth(current.getMonth()-1);await refresh()});
+$("nextBtn").addEventListener("click",async()=>{current.setMonth(current.getMonth()+1);await refresh()});
+$("newFamilyBtn").addEventListener("click",()=>requireAuth(()=>show("familyModal")));
+$("familiesBtn").addEventListener("click",openFamilies);
+$("nextMonthBtn").addEventListener("click",()=>requireAuth(async()=>{
+  const target=new Date(current);target.setMonth(target.getMonth()+1);
+  try{
+    const r=await api("/api/bookings/generate-next-month",{method:"POST",body:JSON.stringify({year:current.getFullYear(),month:current.getMonth()+1})});
+    current=target;await refresh();toast(`${r.copied} agendamento(s) copiado(s).`);
+  }catch(e){toast(e.message)}
+}));
+$("loginBtn").addEventListener("click",async()=>{
+  try{
+    await api("/api/auth/login",{method:"POST",body:JSON.stringify({password:$("password").value})});
+    authenticated=true;$("authBadge").classList.remove("hidden");hide("authModal");
+    const fn=pendingAction;pendingAction=null;if(fn)fn();
+  }catch(e){toast(e.message)}
+});
+$("password").addEventListener("keydown",e=>{if(e.key==="Enter")$("loginBtn").click()});
+$("saveBookingBtn").addEventListener("click",saveBooking);
+$("saveFamilyBtn").addEventListener("click",saveFamily);
+$("whatsappBtn").addEventListener("click",()=>{if(selectedBooking)window.open(`https://wa.me/55${selectedBooking.phone.replace(/\D/g,"")}`,"_blank")});
+$("editBtn").addEventListener("click",()=>requireAuth(()=>{hide("detailModal");openBooking(selectedBooking.date,selectedBooking)}));
+$("deleteBtn").addEventListener("click",()=>requireAuth(async()=>{
+  if(!selectedBooking||!confirm("Cancelar este agendamento?"))return;
+  try{await api(`/api/bookings/${selectedBooking.id}`,{method:"DELETE"});hide("detailModal");await refresh();toast("Agendamento cancelado.")}catch(e){toast(e.message)}
+}));
+document.querySelectorAll(".close").forEach(b=>b.addEventListener("click",()=>b.closest(".overlay").classList.remove("active")));
+document.querySelectorAll(".overlay").forEach(o=>o.addEventListener("click",e=>{if(e.target===o)o.classList.remove("active")}));
+
+(async()=>{await checkAuth();await refresh()})().catch(e=>toast(e.message));
+</script>
+</body>
+</html>
