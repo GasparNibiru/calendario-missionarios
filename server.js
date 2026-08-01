@@ -188,6 +188,31 @@ app.post("/api/families", requireAuth, async (req, res, next) => {
   }
 });
 
+app.put("/api/families/:id", requireAuth, async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const name = String(req.body?.name || "").trim().slice(0, 120);
+    const phone = normalizePhone(req.body?.phone);
+
+    if (!Number.isInteger(id) || !name || phone.length < 8) {
+      return res.status(400).json({ error: "Informe nome e telefone válidos." });
+    }
+
+    const { rows, rowCount } = await pool.query(
+      `UPDATE families
+       SET name = $1, phone = $2
+       WHERE id = $3
+       RETURNING id::text, name, phone, created_at`,
+      [name, phone, id]
+    );
+
+    if (!rowCount) return res.status(404).json({ error: "Família não encontrada." });
+    res.json(rows[0]);
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get("/api/bookings", async (req, res, next) => {
   try {
     const year = Number(req.query.year);
